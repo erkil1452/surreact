@@ -28,3 +28,4 @@ export PATH=${PATH}:${BLENDER_PATH}/2.92/python/bin
 cd ${CODE_PATH}/datageneration
 $BLENDER_PATH/blender -b -t 1 -P main.py -- ${JOB_PARAMS}
 
+"c:\Program Files\Blender Foundation\Blender 2.93\blender.exe" -b -t 1 -P main.py -- --idx 7 --fend 1 --datasetname ntu --split_name train --smpl_estimation_method vibe --smpl_result_path ../data/ntu/vibe/train --bg_path ../data/ntu/backgrounds/ --output_path ../data/surreact/ntu/vibe --tmp_path ../data/surreact/ntu/tmp_vibe_output --vidlist_path vidlists/ntu/train.txt --resx 512 --resy 512 --cam_dist 4 4 --cam_height 0.9 0.9 --zrot_euler 30

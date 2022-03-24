@@ -120,6 +120,7 @@ def load_smpl_body_data(
         hmmr_output["poses"] = add_noise_poses(
             hmmr_output["poses"], noise_factor=noise_factor, level=noise_level
         )
+
     return hmmr_output
 
 

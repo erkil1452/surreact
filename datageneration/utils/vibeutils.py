@@ -87,6 +87,17 @@ def load_smpl_body_data(
         vibe_output["poses"] = add_noise_poses(
             vibe_output["poses"], noise_factor=noise_factor, level=noise_level
         )
+
+    
+    ### HACK pkellnho
+    print(vibe_output["poses"].shape)
+    #print(vibe_output["poses"][:,:3])
+    # No root rotation
+    vibe_output["poses"][:,:3] = 0
+    # No translation.
+    vibe_output["trans"][:] = 0
+    ###
+
     return vibe_output
 
 

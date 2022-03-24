@@ -5,6 +5,8 @@ import sys
 import time
 from os.path import exists, join
 from random import choice
+from pathlib import Path
+import shutil
 
 import bpy
 import Imath
@@ -56,10 +58,12 @@ def main():
     use_pose_smooth = args.use_pose_smooth
     with_trans = args.with_trans
     track_id = args.track_id
+    track_order = args.track_order
     resy = args.resy
     resx = args.resx
     fbeg = args.fbeg
     fend = args.fend
+    frand = args.frand
     fskip = 1
 
     if smpl_estimation_method == "hmmr":
@@ -89,12 +93,14 @@ def main():
     tmp_path = join(tmp_path, split_name, common_filename)
     rgb_path = join(tmp_path, "rgb")
     mp4_path = join(output_path, "{}.mp4".format(common_filename))
+    png_out_path = join(output_path, "{}.png".format(common_filename))
 
     # Check if already computed (use segm for now)
     segm_path = join(output_path, "{}_segm.mat".format(common_filename))
-    if os.path.isfile(mp4_path) and os.path.isfile(segm_path):
+    #if os.path.isfile(mp4_path) and os.path.isfile(segm_path):
+    if os.path.isfile(png_out_path):
         print("Already rendered {}".format(segm_path))
-        exit()
+        #exit()
 
     # create tmp directory
     if not exists(tmp_path):
@@ -115,11 +121,13 @@ def main():
         print("Disabling trans and multi-person if any.")
         with_trans = 0
 
-    if track_id == -1:
+    if track_order >= 0:
+        track_list = all_track_list[track_order:track_order+1]
+    elif track_id >- 0:
+        track_list = [track_id]
+    else:
         track_list = all_track_list
         # track_list = range(num_tracks)
-    else:
-        track_list = [track_id]
     log_message("Using tracks: {}.".format(track_list))
     num_people = len(track_list)
 
@@ -165,7 +173,7 @@ def main():
 
     scene = bpy.data.scenes["Scene"]
     scene.render.engine = "CYCLES"
-    # bpy.data.materials['Material'].use_nodes = True
+    bpy.data.materials['Material'].use_nodes = True
     scene.cycles.shading_system = True
     scene.use_nodes = True
     scene.render.film_transparent = True
@@ -179,8 +187,11 @@ def main():
     log_message("Initializing scene (Clear default scene cube)")
     bpy.ops.object.delete()
 
-    sh_dst = join(sh_dir, "sh_{:05d}.osl".format(idx))
-    os.system("cp spher_harm/sh.osl {}".format(sh_dst))
+    #sh_dst = join(sh_dir, "sh_{:05d}.osh".format(idx))
+    sh_dst = join(sh_dir, "sh_{:05d}.oso".format(idx))
+    #os.system("cp spher_harm/sh.osl {}".format(sh_dst))
+    #shutil.copy('spher_harm/sh.osh', sh_dst)
+    shutil.copy('spher_harm/sh.oso', sh_dst)
 
     smpl_body_list = []
     cloth_img_names = []
@@ -215,9 +226,10 @@ def main():
         for sc in spherical_harmonics:
             sc.inputs[ish + 1].default_value = coeff
 
-    res_paths = create_composite_nodes(
-        scene.node_tree, output_types, tmp_path, bg_img_name=bg_img_name, idx=idx
-    )
+    # # Additional streams (depth...).
+    # res_paths = create_composite_nodes(
+    #     scene.node_tree, output_types, '//' + tmp_path, bg_img_name=bg_img_name, idx=idx
+    # )
 
     set_renderer(scene, resy, resx)
     cam_height, cam_dist = pick_cam(cam_height_range, cam_dist_range)
@@ -237,6 +249,9 @@ def main():
         )
         fend = N
         # exit()
+    if frand:
+        fbeg = np.random.randint(N)
+        fend = fbeg + 1
     log_message("Rendering frames {}:{}:{}:".format(fbeg, fskip, fend))
 
     matfile_info = join(output_path, "{}_info.mat".format(common_filename))
@@ -296,16 +311,16 @@ def main():
         scene.frame_set(seq_frame)
 
         # scene.render.use_antialiasing = False  # blender < 2.8x
-        scene.render.filepath = join(rgb_path, "Image{:04d}.png".format(seq_frame))
+        scene.render.filepath = join('//' + rgb_path, "Image{:04d}.png".format(seq_frame))
 
         log_message("Rendering frame {}".format(seq_frame))
 
         # disable render output
-        old = disable_output_start()
+        #old = disable_output_start()
         # Render
         bpy.ops.render.render(write_still=True)
         # disable output redirection
-        disable_output_end(old)
+        #disable_output_end(old)
 
         for person_no in range(num_people):
             # bone locations should be saved after rendering so that the bones are updated
@@ -321,118 +336,122 @@ def main():
             smpl_body_list[person_no].reset_pose()
 
     # save a .blend file for debugging:
-    # bpy.ops.wm.save_as_mainfile(filepath=join(tmp_path, 'pre.blend'))
+    # bpy.ops.wm.save_as_mainfile(filepath=join(output_path, 'pre.blend'))
 
-    # save RGB data with ffmpeg
-    # (if you don't have h264 codec, you can replace with another one and control the quality with something like -q:v 3)
-    cmd_ffmpeg = (
-        "ffmpeg -loglevel panic -y -r 30 -i "
-        "{}"
-        " -c:v h264 -pix_fmt yuv420p -crf 23 "
-        "{}"
-        "".format(join(rgb_path, "Image%04d.png"), mp4_path)
-    )
-    log_message("Generating RGB video ({})".format(cmd_ffmpeg))
-    os.system(cmd_ffmpeg)
+    # # save RGB data with ffmpeg
+    # # (if you don't have h264 codec, you can replace with another one and control the quality with something like -q:v 3)
+    # cmd_ffmpeg = (
+    #     "ffmpeg -loglevel panic -y -r 30 -i "
+    #     "{}"
+    #     " -c:v h264 -pix_fmt yuv420p -crf 23 "
+    #     "{}"
+    #     "".format(join(rgb_path, "Image%04d.png"), mp4_path)
+    # )
+    # log_message("Generating RGB video ({})".format(cmd_ffmpeg))
+    # os.system(cmd_ffmpeg)
 
-    if output_types["fg"]:
-        fg_mp4_path = join(output_path, "{}_fg.mp4".format(common_filename))
-        cmd_ffmpeg_fg = (
-            "ffmpeg  -loglevel panic -y -r 30 -i "
-            "{}"
-            " -c:v h264 -pix_fmt yuv420p -crf 23 "
-            "{}"
-            "".format(join(res_paths["fg"], "Image%04d.png"), fg_mp4_path)
-        )
-        log_message("Generating fg video ({})".format(cmd_ffmpeg_fg))
-        os.system(cmd_ffmpeg_fg)
+    # if output_types["fg"]:
+    #     fg_mp4_path = join(output_path, "{}_fg.mp4".format(common_filename))
+    #     cmd_ffmpeg_fg = (
+    #         "ffmpeg  -loglevel panic -y -r 30 -i "
+    #         "{}"
+    #         " -c:v h264 -pix_fmt yuv420p -crf 23 "
+    #         "{}"
+    #         "".format(join(res_paths["fg"], "Image%04d.png"), fg_mp4_path)
+    #     )
+    #     log_message("Generating fg video ({})".format(cmd_ffmpeg_fg))
+    #     os.system(cmd_ffmpeg_fg)
+
+    # Copy the first png
+    shutil.copy(join(rgb_path, f"Image0000.png"), png_out_path)
 
     # save annotation excluding png/exr data to _info.mat file
     sio.savemat(matfile_info, dict_info, do_compression=True)
 
-    # .mat files
-    matfile_normal = join(output_path, "{}_normal.mat".format(common_filename))
-    matfile_gtflow = join(output_path, "{}_gtflow.mat".format(common_filename))
-    matfile_depth = join(output_path, "{}_depth.mat".format(common_filename))
-    matfile_segm = join(output_path, "{}_segm.mat".format(common_filename))
-    dict_normal = {}
-    dict_gtflow = {}
-    dict_depth = {}
-    dict_segm = {}
-    FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+    # # .mat files
+    # matfile_normal = join(output_path, "{}_normal.mat".format(common_filename))
+    # matfile_gtflow = join(output_path, "{}_gtflow.mat".format(common_filename))
+    # matfile_depth = join(output_path, "{}_depth.mat".format(common_filename))
+    # matfile_segm = join(output_path, "{}_segm.mat".format(common_filename))
+    # dict_normal = {}
+    # dict_gtflow = {}
+    # dict_depth = {}
+    # dict_segm = {}
+    # FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
 
-    # LOOP OVER FRAMES
-    for seq_frame, i in enumerate(range(fbeg, fend, fskip)):
-        log_message("Processing frame {}".format(seq_frame))
-        for k, folder in res_paths.items():
-            if not k == "vblur" and not k == "fg":
-                path = join(folder, "Image{:04d}.exr".format(seq_frame))
-                exr_file = OpenEXR.InputFile(path)
-                if k == "normal":
-                    mat = np.transpose(
-                        np.reshape(
-                            [
-                                array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
-                                for Chan in ("R", "G", "B")
-                            ],
-                            (3, resx, resy),
-                        ),
-                        (1, 2, 0),
-                    )
-                    dict_normal["normal_{:d}".format(seq_frame + 1)] = mat.astype(
-                        np.float32, copy=False
-                    )  # +1 for the 1-indexing
-                elif k == "gtflow":
-                    mat = np.transpose(
-                        np.reshape(
-                            [
-                                array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
-                                for Chan in ("R", "G")
-                            ],
-                            (2, resx, resy),
-                        ),
-                        (1, 2, 0),
-                    )
-                    dict_gtflow["gtflow_{:d}".format(seq_frame + 1)] = mat.astype(
-                        np.float32, copy=False
-                    )
-                elif k == "depth":
-                    mat = np.reshape(
-                        [
-                            array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
-                            for Chan in ("R")
-                        ],
-                        (resx, resy),
-                    )
-                    dict_depth["depth_{:d}".format(seq_frame + 1)] = mat.astype(
-                        np.float32, copy=False
-                    )
-                elif k == "segm":
-                    mat = np.reshape(
-                        [
-                            array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
-                            for Chan in ("R")
-                        ],
-                        (resx, resy),
-                    )
-                    dict_segm["segm_{:d}".format(seq_frame + 1)] = mat.astype(
-                        np.uint8, copy=False
-                    )
-                # remove(path)
+    # # LOOP OVER FRAMES
+    # for seq_frame, i in enumerate(range(fbeg, fend, fskip)):
+    #     log_message("Processing frame {}".format(seq_frame))
+    #     for k, folder in res_paths.items():
+    #         if not k == "vblur" and not k == "fg":
+    #             path = join(folder[2:], "Image{:04d}.exr".format(seq_frame))
+    #             exr_file = OpenEXR.InputFile(path)
+    #             if k == "normal":
+    #                 mat = np.transpose(
+    #                     np.reshape(
+    #                         [
+    #                             array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
+    #                             for Chan in ("R", "G", "B")
+    #                         ],
+    #                         (3, resx, resy),
+    #                     ),
+    #                     (1, 2, 0),
+    #                 )
+    #                 dict_normal["normal_{:d}".format(seq_frame + 1)] = mat.astype(
+    #                     np.float32, copy=False
+    #                 )  # +1 for the 1-indexing
+    #             elif k == "gtflow":
+    #                 mat = np.transpose(
+    #                     np.reshape(
+    #                         [
+    #                             array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
+    #                             for Chan in ("R", "G")
+    #                         ],
+    #                         (2, resx, resy),
+    #                     ),
+    #                     (1, 2, 0),
+    #                 )
+    #                 dict_gtflow["gtflow_{:d}".format(seq_frame + 1)] = mat.astype(
+    #                     np.float32, copy=False
+    #                 )
+    #             elif k == "depth":
+    #                 mat = np.reshape(
+    #                     [
+    #                         array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
+    #                         for Chan in ("R")
+    #                     ],
+    #                     (resx, resy),
+    #                 )
+    #                 dict_depth["depth_{:d}".format(seq_frame + 1)] = mat.astype(
+    #                     np.float32, copy=False
+    #                 )
+    #             elif k == "segm":
+    #                 mat = np.reshape(
+    #                     [
+    #                         array.array("f", exr_file.channel(Chan, FLOAT)).tolist()
+    #                         for Chan in ("R")
+    #                     ],
+    #                     (resx, resy),
+    #                 )
+    #                 dict_segm["segm_{:d}".format(seq_frame + 1)] = mat.astype(
+    #                     np.uint8, copy=False
+    #                 )
+    #             # remove(path)
 
-    if output_types["normal"]:
-        sio.savemat(matfile_normal, dict_normal, do_compression=True)
-    if output_types["gtflow"]:
-        sio.savemat(matfile_gtflow, dict_gtflow, do_compression=True)
-    if output_types["depth"]:
-        sio.savemat(matfile_depth, dict_depth, do_compression=True)
-    if output_types["segm"]:
-        sio.savemat(matfile_segm, dict_segm, do_compression=True)
+    # if output_types["normal"]:
+    #     sio.savemat(matfile_normal, dict_normal, do_compression=True)
+    # if output_types["gtflow"]:
+    #     sio.savemat(matfile_gtflow, dict_gtflow, do_compression=True)
+    # if output_types["depth"]:
+    #     sio.savemat(matfile_depth, dict_depth, do_compression=True)
+    # if output_types["segm"]:
+    #     sio.savemat(matfile_segm, dict_segm, do_compression=True)
 
     # cleaning up tmp
     if tmp_path != "" and tmp_path != "/":
         log_message("Cleaning up tmp")
-        os.system("rm -rf {}".format(tmp_path))
+        #os.system("rm -rf {}".format(tmp_path))
+        shutil.rmtree(tmp_path)
 
     log_message("Completed batch")
 

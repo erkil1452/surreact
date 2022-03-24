@@ -117,9 +117,16 @@ def parse_opts():
         default=-1,
         help="Person/track index (all persons if -1)",
     )
+    parser.add_argument(
+        "--track_order",
+        type=int,
+        default=-1,
+        help="Person/track index (all persons if -1). Linear index.",
+    )
     parser.add_argument("--datasetname", type=str, default="ntu", help="ntu | uestc")
     parser.add_argument("--resy", type=int, default=320, help="Width image resolution")
     parser.add_argument("--resx", type=int, default=240, help="Height image resolution")
+    parser.add_argument("--frand", type=int, default=0, help="Use random frame index")
     parser.add_argument("--fbeg", type=int, default=0, help="Beginning frame index")
     parser.add_argument(
         "--fend", type=int, default=-1, help="Ending frame index (all frames if -1)"

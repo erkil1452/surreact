@@ -2,6 +2,8 @@ import bpy
 import math
 from mathutils import Matrix, Euler
 from os.path import join
+import os
+from pathlib import Path
 
 
 def set_camera(cam_dist=7, cam_height=1, zrot_euler=0):
@@ -25,7 +27,14 @@ def set_camera(cam_dist=7, cam_height=1, zrot_euler=0):
     )
 
     # cam_ob.matrix_world = cam_trans * cam_rot * cam_rot_z * cam_rot_x  # blender < 2.8x
-    cam_ob.matrix_world = cam_trans @ cam_rot @ cam_rot_z @ cam_rot_x
+    # cam_ob.matrix_world = cam_trans @ cam_rot @ cam_rot_z @ cam_rot_x
+
+    # pkellnho: No flips and weird things.
+    cam_rot = Euler((math.radians(90), 0, rot_z), "XYZ").to_matrix().to_4x4()
+    cam_trans = Matrix.Translation(
+        [cam_dist * math.sin(rot_z), -cam_dist * math.cos(rot_z), cam_height]
+    )
+    cam_ob.matrix_world = cam_trans @ cam_rot 
 
     cam_ob.data.angle = math.radians(40)
     cam_ob.data.lens = 60
@@ -39,6 +48,8 @@ def set_camera(cam_dist=7, cam_height=1, zrot_euler=0):
 
 def set_renderer(scene, resy, resx):
     scn = bpy.context.scene
+    scn.render.engine = 'CYCLES'
+
     scn.cycles.film_transparent = True
     # blender < 2.8x
     # scn.render.layers['RenderLayer'].use_pass_vector = True
@@ -76,7 +87,7 @@ def create_composite_nodes(tree, output_types, tmp_path, bg_img_name=None, idx=0
     bg_im = tree.nodes.new("CompositorNodeImage")
     bg_im.location = -300, 30
     if bg_img_name is not None:
-        bg_img = bpy.data.images.load(bg_img_name)
+        bg_img = bpy.data.images.load('//' + bg_img_name)
         bg_im.image = bg_img
         print("Set the background image!")
 
@@ -165,7 +176,8 @@ def create_sh_material(tree, sh_path, cloth_img_name):
     # uv_xform.operation = 'AVERAGE'  # blender < 2.8x
     uv_xform.operation = "ADD"  # TODO
 
-    cloth_img = bpy.data.images.load(cloth_img_name)
+    cloth_img = bpy.data.images.load('//' + cloth_img_name)
+    #cloth_img = bpy.data.images.load(str(Path(cloth_img_name).resolve().absolute()))
     uv_im = tree.nodes.new("ShaderNodeTexImage")
     uv_im.location = -400, 400
     uv_im.image = cloth_img
@@ -176,7 +188,9 @@ def create_sh_material(tree, sh_path, cloth_img_name):
     script = tree.nodes.new("ShaderNodeScript")
     script.location = -230, 400
     script.mode = "EXTERNAL"
-    script.filepath = sh_path  # 'spher_harm/sh.osl' #using the same file from multiple jobs causes white texture
+    #script.filepath = '//' + sh_path  # 'spher_harm/sh.osl' #using the same file from multiple jobs causes white texture
+    script.filepath = str(Path(sh_path).resolve().absolute())  # 'spher_harm/sh.osl' #using the same file from multiple jobs causes white texture
+    #script.filepath = 'spher_harm/sh.osl' 
     script.update()
 
     # the emission node makes it independent of the scene lighting
@@ -190,3 +204,7 @@ def create_sh_material(tree, sh_path, cloth_img_name):
     tree.links.new(uv_im.outputs[0], script.inputs[0])
     tree.links.new(script.outputs[0], emission.inputs[0])
     tree.links.new(emission.outputs[0], mat_out.inputs[0])
+
+    # tree.links.new(uv.outputs[2], uv_im.inputs[0])
+    # tree.links.new(uv_im.outputs[0], emission.inputs[0])
+    # tree.links.new(emission.outputs[0], mat_out.inputs[0])

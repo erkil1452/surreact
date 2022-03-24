@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
+.vscode
 
 datageneration/smpl_data/textures/
 datageneration/smpl_data/*.fbx
@@ -12,3 +13,24 @@ training/data/
 training/pretrained_models/
 
 data
+/datageneration/smpl_data/SMPL_maya_plugin_v1.0.2.py
+/datageneration/smpl_data/SURREAL/female_beta_stds.npy
+/datageneration/smpl_data/SURREAL/male_beta_stds.npy
+/datageneration/smpl_data/joints_mat_v1.0.2.pkl
+/datageneration/smpl_data/release_notes_v1.0.2.txt
+/datageneration/smpl_data/smpl/.DS_Store
+/datageneration/smpl_data/smpl/__init__.py
+/datageneration/smpl_data/smpl/models/basicModel_f_lbs_10_207_0_v1.0.0.pkl
+/datageneration/smpl_data/smpl/models/basicmodel_m_lbs_10_207_0_v1.0.0.pkl
+/datageneration/smpl_data/smpl/smpl_webuser/LICENSE.txt
+/datageneration/smpl_data/smpl/smpl_webuser/README.txt
+/datageneration/smpl_data/smpl/smpl_webuser/__init__.py
+/datageneration/smpl_data/smpl/smpl_webuser/hello_world/hello_smpl.py
+/datageneration/smpl_data/smpl/smpl_webuser/hello_world/render_smpl.py
+/datageneration/smpl_data/smpl/smpl_webuser/lbs.py
+/datageneration/smpl_data/smpl/smpl_webuser/posemapper.py
+/datageneration/smpl_data/smpl/smpl_webuser/serialization.py
+/datageneration/smpl_data/smpl/smpl_webuser/verts.py
+/datageneration/smpl_data/smpl_data.npz
+/datageneration/segm_per_v_overlap.pkl
+/datageneration/smpl_data/README.txt
